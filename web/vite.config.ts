@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // All API routes proxy to FastAPI backend
       "/health": { target: "http://localhost:8000" },
       "/agents": { target: "http://localhost:8000" },
       "/rooms": { target: "http://localhost:8000" },
@@ -15,7 +16,10 @@ export default defineConfig({
       "/consensus": { target: "http://localhost:8000" },
       "/decisions": { target: "http://localhost:8000" },
       "/speaker": { target: "http://localhost:8000" },
-      "/ws": { target: "ws://localhost:8000", ws: true },
+      "/tools": { target: "http://localhost:8000" },
+      "/okr": { target: "http://localhost:8000" },
+      // WebSocket
+      "/ws": { target: "ws://localhost:8000", ws: true, changeOrigin: true },
     },
   },
 });

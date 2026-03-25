@@ -62,36 +62,30 @@ export function OfficeView({ rooms, selectedRoom, onSelectRoom }: Props) {
     return () => clearInterval(t);
   }, []);
 
-  // Only fetch details for running rooms + selected building's rooms (not ALL)
+  // Fetch room summaries via single batch API call
   useEffect(() => {
     const load = async () => {
-      const details = new Map<string, RoomDetail>(roomDetails);
-      // Only fetch running rooms or rooms in the selected building
-      const toFetch = rooms.filter((r) =>
-        r.status === "running" ||
-        (selectedBuilding && (r.room_id === selectedBuilding || (r as any).parent_room === selectedBuilding)) ||
-        !details.has(r.room_id)
-      );
-      for (const room of toFetch.slice(0, 10)) {
-        try {
-          const res = await fetch(`/rooms/${room.room_id}/messages`);
-          const msgs = res.ok ? await res.json() : [];
-          const ac = Math.max(room.agents.length, 1);
-          details.set(room.room_id, {
-            ...room, messageCount: msgs.length,
-            lastSender: msgs.length > 0 ? msgs[msgs.length - 1].sender : "",
-            round: Math.floor(msgs.length / ac) + 1,
+      try {
+        const res = await fetch("/rooms/summary");
+        if (!res.ok) return;
+        const summaries = await res.json();
+        const details = new Map<string, RoomDetail>();
+        for (const s of summaries) {
+          const ac = Math.max((s.agents || []).length, 1);
+          details.set(s.room_id, {
+            ...s,
+            messageCount: s.message_count || 0,
+            lastSender: s.last_sender || "",
+            round: Math.floor((s.message_count || 0) / ac) + 1,
           });
-        } catch {
-          details.set(room.room_id, { ...room, messageCount: 0, lastSender: "", round: 1 });
         }
-      }
-      setRoomDetails(new Map(details));
+        setRoomDetails(details);
+      } catch { /* ignore */ }
     };
     load();
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
-  }, [rooms, selectedBuilding]);
+  }, [rooms]);
 
   // Build buildings from room hierarchy
   const buildings = useMemo(() => {

@@ -244,6 +244,21 @@ async def get_room(room_id: str):
     return {"error": "Room not found"}
 
 
+@app.get("/rooms/summary")
+async def rooms_summary():
+    """Batch: all rooms with message counts, no full messages."""
+    rooms = await _director.get_rooms_status()
+    result = []
+    for r in rooms:
+        msgs = _director.get_room_messages(r["room_id"])
+        result.append({
+            **r,
+            "message_count": len(msgs),
+            "last_sender": msgs[-1]["sender"] if msgs else "",
+        })
+    return result
+
+
 @app.get("/rooms/{room_id}/messages")
 async def get_room_messages(room_id: str):
     return _director.get_room_messages(room_id)

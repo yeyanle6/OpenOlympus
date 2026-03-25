@@ -25,17 +25,6 @@ export default function App() {
   useEffect(() => { localStorage.setItem("olympus_tab", tab); }, [tab]);
   useEffect(() => { localStorage.setItem("olympus_selectedRoom", selectedRoom); }, [selectedRoom]);
 
-  useEffect(() => {
-    const poll = setInterval(async () => {
-      try {
-        const [r, s] = await Promise.all([api.rooms(), api.speaker()]);
-        setRooms(r);
-        setSpeaker(s);
-      } catch { /* ignore */ }
-    }, 2000);
-    return () => clearInterval(poll);
-  }, []);
-
   const handleWsEvent = useCallback((event: WsEvent) => {
     if (event.type === "init" && event.rooms_status) {
       setRooms(event.rooms_status);
@@ -50,7 +39,20 @@ export default function App() {
     }
   }, []);
 
-  useWebSocket(handleWsEvent);
+  const { statusRef } = useWebSocket(handleWsEvent);
+
+  // Fallback polling: only active when WebSocket is disconnected
+  useEffect(() => {
+    const poll = setInterval(async () => {
+      if (statusRef.current === "connected") return;
+      try {
+        const [r, s] = await Promise.all([api.rooms(), api.speaker()]);
+        setRooms(r);
+        setSpeaker(s);
+      } catch { /* ignore */ }
+    }, 2000);
+    return () => clearInterval(poll);
+  }, [statusRef]);
 
   const handleRoomCreated = useCallback((roomId: string) => {
     setSelectedRoom(roomId);
