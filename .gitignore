@@ -16,3 +16,7 @@ logs/
 .auto-loop*
 tools/_registry.json
 docs/exports/
+data/olympus.db
+data/olympus.db-shm
+data/olympus.db-wal
+.DS_Store
