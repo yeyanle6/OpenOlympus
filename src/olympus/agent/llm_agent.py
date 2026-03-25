@@ -15,6 +15,7 @@ from olympus.types import Message, AgentResult
 from olympus.agent.definition import AgentDefinition
 from olympus.agent.speaker import SpeakerLock
 from olympus.agent.evolution import EvolutionEngine
+from olympus.agent.mock import MOCK_ENABLED, mock_response
 from olympus.memory.session import SessionMemory
 
 # Global evolution engine singleton
@@ -42,6 +43,10 @@ class LLMAgent:
         room_id: str = "",
         use_tools: bool | None = None,
     ) -> AgentResult:
+        # Mock mode: return deterministic response without Claude CLI
+        if MOCK_ENABLED:
+            return mock_response(self.definition, task)
+
         prompt = self._build_prompt(task, context)
         start = time.monotonic()
         speaker = SpeakerLock.get()
