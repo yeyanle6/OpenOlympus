@@ -201,16 +201,21 @@ class LLMAgent:
                 cmd.extend(["--tools", ""])
                 cmd.extend(["--model", "sonnet"])
 
+        # Phase 0 instrumentation: measure popen vs total latency
+        t_start = time.monotonic()
         proc = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
         )
+        t_total = time.monotonic() - t_start
 
-        # Debug: log the actual command (excluding prompt content)
         cmd_debug = [c for c in cmd if c != prompt]
-        logger.info("Claude CLI cmd: %s (prompt: %d chars)", cmd_debug, len(prompt))
+        logger.info(
+            "Claude CLI: %s | prompt=%d chars | total=%.1fs",
+            cmd_debug, len(prompt), t_total,
+        )
 
         if proc.returncode != 0:
             raise RuntimeError(
