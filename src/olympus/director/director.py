@@ -325,14 +325,50 @@ class Director:
             task.cancel()
         await asyncio.gather(*self._room_tasks.values(), return_exceptions=True)
 
+    def _fallback_parse(self, message: str) -> DirectorAction:
+        """Rule-based intent parsing when LLM is unavailable."""
+        msg_lower = message.lower()
+
+        # Detect protocol from message
+        protocol = "roundtable"
+        for alias, proto in [
+            ("delegate", "delegate"), ("pipeline", "pipeline"),
+            ("parallel", "parallel"), ("peer_review", "peer_review"),
+            ("roundtable", "roundtable"), ("standup", "standup"),
+            ("review_meeting", "review_meeting"), ("decision_gate", "decision_gate"),
+        ]:
+            if alias in msg_lower:
+                protocol = proto
+                break
+
+        # Detect agent names from message
+        all_ids = set(self.loader.list_ids())
+        agents = [a for a in all_ids if a in msg_lower]
+        if not agents:
+            agents = ["planner", "architect", "critic"]  # default team
+
+        # Task is the full message
+        task = message
+
+        return DirectorAction(
+            action="spawn_room",
+            protocol=protocol,
+            agents=agents,
+            task=task,
+            reply=f"Room started (fallback): {protocol} with {agents}",
+        )
+
     async def _parse_intent(self, message: str) -> DirectorAction:
-        # Only show running rooms to keep prompt concise
+        # Try rule-based alias resolution first
+        from olympus.director.room_aliases import resolve_alias
+        resolved = resolve_alias(message)
+
+        # Try LLM-based parsing
         all_rooms = await self.get_rooms_status()
         active = [r for r in all_rooms if r["status"] in ("running", "created")]
         rooms_status = json.dumps(active[:5], ensure_ascii=False) if active else "[]"
         prompt = _INTENT_SYSTEM_PROMPT.format(rooms_status=rooms_status)
 
-        # Add recent conversation context
         recent = self._conversation[-10:]
         context = "\n".join(f"{m['role']}: {m['content']}" for m in recent)
         full_prompt = f"{prompt}\n\nConversation:\n{context}"
@@ -340,6 +376,10 @@ class Director:
         try:
             result = await asyncio.to_thread(self._call_claude, full_prompt)
             text = self._extract_text(result)
+            if not text.strip():
+                # CLI returned empty — use fallback
+                logger.warning("Claude CLI returned empty, using fallback parser")
+                return self._fallback_parse(message)
             data = self._try_extract_json(text)
             return self._parse_action(data)
         except Exception as e:
@@ -630,8 +670,9 @@ class Director:
             [
                 "claude", "-p", prompt,
                 "--output-format", "json",
-                "--max-turns", "1",
+                "--max-turns", "2",
                 "--model", "sonnet",
+                "--tools", "",
             ],
             capture_output=True, text=True, timeout=timeout,
         )

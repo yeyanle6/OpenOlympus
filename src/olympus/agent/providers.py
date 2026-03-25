@@ -79,19 +79,28 @@ class ClaudeCLIProvider(LLMProvider):
             cmd.extend(["--permission-mode", permission_mode])
 
         t0 = time.monotonic()
-        proc = await asyncio.to_thread(
-            subprocess.run, cmd,
-            capture_output=True, text=True, timeout=timeout,
-        )
+
+        # Retry up to 2 times if CLI returns empty result
+        data = {}
+        text = ""
+        for attempt in range(3):
+            proc = await asyncio.to_thread(
+                subprocess.run, cmd,
+                capture_output=True, text=True, timeout=timeout,
+            )
+            if proc.returncode != 0:
+                raise RuntimeError(f"Claude CLI error: {proc.stderr[:500]}")
+
+            data = json.loads(proc.stdout)
+            text = data.get("result", "")
+            if not isinstance(text, str):
+                text = ""
+
+            if text.strip():
+                break
+            logger.warning("Claude CLI returned empty result (attempt %d/3)", attempt + 1)
+
         duration_ms = int((time.monotonic() - t0) * 1000)
-
-        if proc.returncode != 0:
-            raise RuntimeError(f"Claude CLI error: {proc.stderr[:500]}")
-
-        data = json.loads(proc.stdout)
-        text = data.get("result", "")
-        if not isinstance(text, str):
-            text = ""
         usage = data.get("usage", {})
 
         return LLMResponse(
