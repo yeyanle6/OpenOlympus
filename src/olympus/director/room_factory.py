@@ -52,11 +52,11 @@ class RoomFactory:
         gate = PauseGate()
 
         def on_message(msg: Message) -> None:
-            # Validate: reject empty or tool-only messages
-            content = msg.content.strip()
-            if not content or len(content) < 10:
-                return
-            if content.startswith("[Agent used") and "no text output" in content:
+            # Validate message quality
+            from olympus.agent.validator import validate_message
+            prev = [m["content"] for m in room_messages.get(room.room_id, [])]
+            vr = validate_message(msg.content, prev)
+            if not vr.valid:
                 return
 
             msg_data = {

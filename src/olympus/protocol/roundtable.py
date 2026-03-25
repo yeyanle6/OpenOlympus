@@ -58,7 +58,10 @@ class RoundtableProtocol(Protocol):
                 all_results.append(result)
                 total_tokens += result.tokens_used
 
-                if result.status == "success" and result.artifact.strip() and len(result.artifact.strip()) >= 10:
+                from olympus.agent.validator import validate_message
+                prev = [m.content for m in memory.get_all()[-6:]]
+                vr = validate_message(result.artifact, prev)
+                if result.status == "success" and vr.valid:
                     msg = Message(
                         type=MessageType.OPINION,
                         sender=agent.agent_id,

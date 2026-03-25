@@ -454,13 +454,12 @@ class Director:
         gate = PauseGate()
 
         def on_message(msg: Message) -> None:
-            # Validate: reject empty or tool-only messages
-            content = msg.content.strip()
-            if not content or len(content) < 10:
-                logger.warning("Dropping empty message from %s (len=%d)", msg.sender, len(content))
-                return
-            if content.startswith("[Agent used") and "no text output" in content:
-                logger.warning("Dropping tool-only message from %s", msg.sender)
+            # Validate message quality
+            from olympus.agent.validator import validate_message
+            prev = [m["content"] for m in self._room_messages.get(room.room_id, [])]
+            vr = validate_message(msg.content, prev)
+            if not vr.valid:
+                logger.warning("Dropping %s message from %s: %s", vr.category, msg.sender, vr.reason)
                 return
 
             msg_data = {
