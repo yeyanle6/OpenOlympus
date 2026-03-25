@@ -132,7 +132,8 @@ async def test_parallel_gather_with_synthesis():
         FakeAgent("explorer", "found A"),
         FakeAgent("researcher", "found B"),
     ]
-    protocol = ParallelGatherProtocol(synthesizer_index=0)
+    from olympus.protocol.parallel_gather import MergeStrategy
+    protocol = ParallelGatherProtocol(synthesizer_index=0, merge_strategy=MergeStrategy.SYNTHESIZE)
     results = await protocol.run(agents, "research")
 
     # 2 parallel + 1 synthesis = 3 results
