@@ -58,8 +58,23 @@ class RoomsStore:
         path = self._room_dir(room_id) / "meta.json"
         if not path.exists():
             return None
-        async with aiofiles.open(path, "r", encoding="utf-8") as f:
-            return json.loads(await f.read())
+        try:
+            async with aiofiles.open(path, "r", encoding="utf-8") as f:
+                text = await f.read()
+            return json.loads(text)
+        except json.JSONDecodeError:
+            # Try to salvage first JSON object from corrupted file
+            try:
+                depth = 0
+                for i, c in enumerate(text):
+                    if c == '{': depth += 1
+                    elif c == '}':
+                        depth -= 1
+                        if depth == 0:
+                            return json.loads(text[:i + 1])
+            except (json.JSONDecodeError, ValueError):
+                pass
+            return None
 
     # ── References ────────────────────────────────────────────
 

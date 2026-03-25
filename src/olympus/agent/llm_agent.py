@@ -175,7 +175,7 @@ class LLMAgent:
 
         if use_tools is False:
             # Protocol explicitly requests no tools (discussion mode)
-            cmd.extend(["--max-turns", "1"])
+            cmd.extend(["--max-turns", "2"])
             cmd.extend(["--model", "sonnet"])
             cmd.extend(["--tools", ""])
         elif use_tools is True or is_worker:

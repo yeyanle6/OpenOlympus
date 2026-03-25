@@ -285,12 +285,16 @@ class Director:
             if msgs:
                 self._room_messages[rid] = msgs
             # Restore metadata as a ManagedRoom
+            # Force running→completed on restore (no live process exists)
+            saved_status = meta.get("status", "completed")
+            if saved_status in ("running", "created"):
+                saved_status = "completed"
             managed = ManagedRoom(
                 room_id=rid,
                 task=meta.get("task", ""),
                 protocol=meta.get("protocol", ""),
                 agent_ids=meta.get("agents", []),
-                status=RoomStatus(meta.get("status", "completed")),
+                status=RoomStatus(saved_status),
             )
             self._rooms[rid] = managed
             if meta.get("parent_room"):
@@ -462,6 +466,7 @@ class Director:
         }))
 
         async def run_room() -> None:
+          try:
             results = await room.run()
             managed.result = results
             # Update WBS node status
@@ -546,6 +551,10 @@ class Director:
                             )
                         except Exception as e:
                             logger.error("Coordinator review failed for room %s: %s", room.room_id, e)
+
+          except Exception as e:
+            logger.error("run_room CRASHED for %s: %s", room.room_id, e, exc_info=True)
+            managed.status = RoomStatus.FAILED
 
         task = asyncio.create_task(run_room())
         self._room_tasks[room.room_id] = task

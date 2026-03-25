@@ -519,6 +519,8 @@ async def update_okr(req: OKRRequest):
 _CAMERA_MSG_TYPES = {"landmarks", "gesture", "camera_status"}
 
 
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await _ws_manager.connect(ws)
