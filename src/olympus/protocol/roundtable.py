@@ -58,7 +58,7 @@ class RoundtableProtocol(Protocol):
                 all_results.append(result)
                 total_tokens += result.tokens_used
 
-                if result.status == "success":
+                if result.status == "success" and result.artifact.strip() and len(result.artifact.strip()) >= 10:
                     msg = Message(
                         type=MessageType.OPINION,
                         sender=agent.agent_id,

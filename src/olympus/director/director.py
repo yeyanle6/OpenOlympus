@@ -454,9 +454,18 @@ class Director:
         gate = PauseGate()
 
         def on_message(msg: Message) -> None:
+            # Validate: reject empty or tool-only messages
+            content = msg.content.strip()
+            if not content or len(content) < 10:
+                logger.warning("Dropping empty message from %s (len=%d)", msg.sender, len(content))
+                return
+            if content.startswith("[Agent used") and "no text output" in content:
+                logger.warning("Dropping tool-only message from %s", msg.sender)
+                return
+
             msg_data = {
                 "sender": msg.sender,
-                "content": msg.content,
+                "content": content,
                 "type": msg.type.value,
                 "id": msg.id,
                 "timestamp": msg.timestamp,
