@@ -55,8 +55,8 @@ async def test_delegate_empty_agents():
 
 async def test_roundtable_converges_on_done():
     agents = [
-        FakeAgent("a", "I think [DONE]"),
-        FakeAgent("b", "Agreed [DONE]"),
+        FakeAgent("a", "I think the discussion is complete and we have reached consensus [DONE]"),
+        FakeAgent("b", "I agree with the conclusion, everything has been covered [DONE]"),
     ]
     protocol = RoundtableProtocol(max_rounds=3)
     results = await protocol.run(agents, "discuss")
