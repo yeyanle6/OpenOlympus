@@ -52,7 +52,14 @@ class RoomFactory:
         gate = PauseGate()
 
         def on_message(msg: Message) -> None:
-            msg_data = {"sender": msg.sender, "content": msg.content, "type": msg.type.value}
+            msg_data = {
+                "sender": msg.sender,
+                "content": msg.content,
+                "type": msg.type.value,
+                "id": msg.id,
+                "timestamp": msg.timestamp,
+                "metadata": msg.metadata,
+            }
             if room.room_id not in room_messages:
                 room_messages[room.room_id] = []
             room_messages[room.room_id].append(msg_data)

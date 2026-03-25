@@ -285,6 +285,12 @@ class Director:
             # Restore messages
             msgs = await self._store.load_messages(rid)
             if msgs:
+                # Migration: add defaults for old messages missing new fields
+                import uuid as _uuid
+                for msg in msgs:
+                    msg.setdefault("id", _uuid.uuid4().hex[:12])
+                    msg.setdefault("timestamp", "")
+                    msg.setdefault("metadata", {})
                 self._room_messages[rid] = msgs
             # Restore metadata as a ManagedRoom
             # Force running→completed on restore (no live process exists)
@@ -408,7 +414,14 @@ class Director:
         gate = PauseGate()
 
         def on_message(msg: Message) -> None:
-            msg_data = {"sender": msg.sender, "content": msg.content, "type": msg.type.value}
+            msg_data = {
+                "sender": msg.sender,
+                "content": msg.content,
+                "type": msg.type.value,
+                "id": msg.id,
+                "timestamp": msg.timestamp,
+                "metadata": msg.metadata,
+            }
             # Store message for REST API retrieval
             if room.room_id not in self._room_messages:
                 self._room_messages[room.room_id] = []

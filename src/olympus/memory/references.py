@@ -18,6 +18,7 @@ class Reference:
     cited_by: list[str] = field(default_factory=list)  # agent_ids
     contexts: list[dict[str, str]] = field(default_factory=list)  # [{agent, topic, quote}]
     message_indices: list[int] = field(default_factory=list)  # which messages cite this
+    source_marker_match: bool = False  # True if matched via [SOURCE: ...] inline marker
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -29,6 +30,7 @@ class Reference:
             "contexts": self.contexts,
             "message_indices": self.message_indices,
             "citation_count": len(self.cited_by),
+            "source_marker_match": self.source_marker_match,
         }
 
 
@@ -43,6 +45,11 @@ _PAPER_PATTERNS = [
     # "Author, Year" in parentheses
     re.compile(r'[\(（]([A-Z][a-z]+(?:\s+(?:et\s+al\.?|and|&)\s+[A-Z][a-z]+)?),?\s*((?:19|20)\d{2})[\)）]'),
 ]
+
+# Inline source markers from Specialist agents: [SOURCE: description | type]
+_SOURCE_MARKER = re.compile(
+    r"\[SOURCE:\s*(.+?)\s*\|\s*(\w+)\s*\]"
+)
 
 _DATASET_KEYWORDS = [
     "UBFC-rPPG", "UBFC", "PURE", "COHFACE", "MAHNOB-HCI", "MMSE-HR",
@@ -101,6 +108,15 @@ class ReferenceExtractor:
                 ref = self._get_or_create(f"tool_{tool.lower()}", "tool", title=tool)
                 self._add_citation(ref, sender, message_index, content,
                                    content.lower().find(tool.lower()))
+
+        # Extract inline [SOURCE: description | type] markers from Specialist agents
+        for m in _SOURCE_MARKER.finditer(content):
+            desc = m.group(1).strip()
+            src_type = m.group(2).strip().lower()
+            key = f"source_{desc.lower().replace(' ', '_')[:40]}"
+            ref = self._get_or_create(key, src_type, title=desc)
+            ref.source_marker_match = True
+            self._add_citation(ref, sender, message_index, content, m.start())
 
         return new_refs
 

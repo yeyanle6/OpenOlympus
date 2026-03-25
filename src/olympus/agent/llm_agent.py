@@ -11,7 +11,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-from olympus.types import Message, AgentResult
+from olympus.types import Message, AgentResult, AgentLayer
 from olympus.agent.definition import AgentDefinition
 from olympus.agent.speaker import SpeakerLock
 from olympus.agent.evolution import EvolutionEngine
@@ -152,6 +152,17 @@ class LLMAgent:
             parts.append("CONSTRAINT: You are READ-ONLY. Do not write or modify any files.")
         if not perms.execute:
             parts.append("CONSTRAINT: You cannot execute shell commands.")
+
+        # Citation instructions for Specialist layer
+        if self.definition.layer == AgentLayer.SPECIALIST:
+            parts.append(
+                "## Citation Requirement\n"
+                "When making factual claims, cite your source inline as "
+                "[SOURCE: description | type] where type is one of: "
+                "paper, url, dataset, prior_agent, tool_result, reasoning.\n"
+                "Example: 'POS achieves 2.4 BPM MAE [SOURCE: Wang et al. 2017 | paper]'\n"
+                "Uncited quantitative claims will be flagged as UNSOURCED."
+            )
 
         # Context from prior messages
         if context:

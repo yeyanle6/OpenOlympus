@@ -26,7 +26,7 @@ class RoomsStore:
 
     # ── Messages ──────────────────────────────────────────────
 
-    async def save_message(self, room_id: str, msg: dict[str, str]) -> None:
+    async def save_message(self, room_id: str, msg: dict[str, Any]) -> None:
         d = self._ensure_dir(room_id)
         path = d / "messages.jsonl"
         async with aiofiles.open(path, "a", encoding="utf-8") as f:
