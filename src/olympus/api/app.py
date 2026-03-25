@@ -46,6 +46,13 @@ _rule_engine = RuleEngine(_db)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Clear stale bytecode cache to prevent running old code
+    import subprocess
+    subprocess.run(
+        ["find", ".", "-type", "d", "-name", "__pycache__", "-exec", "rm", "-rf", "{}", "+"],
+        capture_output=True, cwd=str(Path(__file__).resolve().parents[3]),
+    )
+
     _loader.load_all()
     _ws_manager.setup()
     restored = await _director.restore_from_disk()
