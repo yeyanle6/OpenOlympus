@@ -20,3 +20,4 @@ data/olympus.db
 data/olympus.db-shm
 data/olympus.db-wal
 .DS_Store
+knowledge/

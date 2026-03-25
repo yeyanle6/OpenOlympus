@@ -20,6 +20,7 @@ from olympus.memory.references import ReferenceExtractor
 from olympus.memory.rooms_store import RoomsStore
 from olympus.director.room_aliases import resolve_alias, get_aliases_prompt
 from olympus.memory.wbs import TaskBreakdown, WBSNode, TaskStatus
+from olympus.knowledge.vault import ObsidianVault
 from olympus.protocol.base import Protocol
 from olympus.protocol.delegate import DelegateProtocol
 from olympus.protocol.roundtable import RoundtableProtocol
@@ -106,6 +107,7 @@ class Director:
         self._room_themes: dict[str, str] = {}  # room_id -> theme
         self._store = RoomsStore()
         self._wbs: dict[str, TaskBreakdown] = {}  # root_room_id -> task tree
+        self._vault = ObsidianVault()
 
     async def chat(self, user_message: str) -> dict[str, Any]:
         """Process a user message and return a response."""
@@ -494,6 +496,22 @@ class Director:
                 await self._store.save_references(
                     room.room_id, self._room_refs[room.room_id].get_graph_data()
                 )
+            # Sync to Obsidian knowledge base
+            try:
+                msgs = self._room_messages.get(room.room_id, [])
+                refs_data = self._room_refs[room.room_id].get_all() if room.room_id in self._room_refs else []
+                self._vault.save_discussion(
+                    room_id=room.room_id,
+                    task=action.task,
+                    protocol=action.protocol,
+                    agents=agents_ids,
+                    messages=msgs,
+                    references=refs_data,
+                )
+                logger.info("Synced room %s to Obsidian vault", room.room_id)
+            except Exception as e:
+                logger.warning("Obsidian sync failed for %s: %s", room.room_id, e)
+
             # Save clean text summary to consensus on completion
             if room.status == RoomStatus.COMPLETED and results:
                 artifacts = [
