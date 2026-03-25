@@ -197,6 +197,71 @@ async def get_agent_provider(agent_id: str):
     return {"agent_id": a.agent_id, "provider": a.provider, "model": a.model}
 
 
+# ── Workflow ──────────────────────────────────────────────────
+
+from olympus.workflow.engine import WorkflowEngine
+from olympus.workflow.phases import WORKFLOW_TEMPLATES
+
+_workflow = WorkflowEngine(_director)
+
+
+@app.get("/workflows")
+async def list_workflows():
+    return _workflow.list_projects()
+
+
+@app.get("/workflows/templates")
+async def list_templates():
+    return {
+        name: [{"name": p.name, "protocol": p.protocol, "agents": p.agents,
+                "human_role": p.human_role.value} for p in phases]
+        for name, phases in WORKFLOW_TEMPLATES.items()
+    }
+
+
+class CreateProjectRequest(BaseModel):
+    name: str
+    template: str = "standard"
+
+
+@app.post("/workflows")
+async def create_project(req: CreateProjectRequest):
+    project = _workflow.create_project(req.name, req.template)
+    return project.to_dict()
+
+
+@app.get("/workflows/{project_id}")
+async def get_project(project_id: str):
+    p = _workflow.get_project(project_id)
+    if not p:
+        return {"error": "Project not found"}
+    return p.to_dict()
+
+
+@app.post("/workflows/{project_id}/run")
+async def run_next_phase(project_id: str):
+    result = await _workflow.run_phase(project_id)
+    return result.to_dict()
+
+
+@app.post("/workflows/{project_id}/run-all")
+async def run_all_phases(project_id: str):
+    results = await _workflow.run_all(project_id)
+    return [r.to_dict() for r in results]
+
+
+@app.post("/workflows/{project_id}/approve")
+async def approve_phase(project_id: str):
+    ok = _workflow.approve_phase(project_id)
+    return {"ok": ok}
+
+
+@app.post("/workflows/{project_id}/reject")
+async def reject_phase(project_id: str):
+    ok = _workflow.reject_phase(project_id)
+    return {"ok": ok}
+
+
 # ── Agents ────────────────────────────────────────────────────
 
 @app.get("/agents")
