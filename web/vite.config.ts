@@ -18,6 +18,7 @@ export default defineConfig({
       "/speaker": { target: "http://localhost:8000" },
       "/tools": { target: "http://localhost:8000" },
       "/okr": { target: "http://localhost:8000" },
+      "/workflows": { target: "http://localhost:8000" },
       // WebSocket
       "/ws": { target: "ws://localhost:8000", ws: true, changeOrigin: true },
     },

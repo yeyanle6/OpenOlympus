@@ -7,8 +7,9 @@ import { RoomSidebar } from "./components/RoomSidebar";
 import { RoomDetail } from "./components/RoomDetail";
 import { LoopDashboard } from "./components/LoopDashboard";
 import { OfficeView } from "./components/OfficeView";
+import { WorkflowView } from "./components/WorkflowView";
 
-type Tab = "director" | "loop" | "office";
+type Tab = "director" | "office" | "workflow" | "loop";
 
 export default function App() {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
@@ -62,6 +63,7 @@ export default function App() {
   const tabs: { key: Tab; label: string }[] = [
     { key: "director", label: "Director" },
     { key: "office", label: "Office" },
+    { key: "workflow", label: "Workflow" },
     { key: "loop", label: "Loop" },
   ];
 
@@ -120,6 +122,9 @@ export default function App() {
         <main className="flex-1 min-w-0">
           {tab === "director" && (
             <DirectorChat onRoomCreated={handleRoomCreated} />
+          )}
+          {tab === "workflow" && (
+            <WorkflowView onSelectRoom={setSelectedRoom} />
           )}
           {tab === "loop" && <LoopDashboard />}
           {tab === "office" && (
