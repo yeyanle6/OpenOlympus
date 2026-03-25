@@ -16,6 +16,7 @@ from olympus.agent.definition import AgentDefinition
 from olympus.agent.speaker import SpeakerLock
 from olympus.agent.evolution import EvolutionEngine
 from olympus.agent.mock import MOCK_ENABLED, mock_response
+from olympus.agent.providers import get_provider, LLMResponse
 from olympus.memory.session import SessionMemory
 
 # Global evolution engine singleton
@@ -52,19 +53,53 @@ class LLMAgent:
         speaker = SpeakerLock.get()
 
         try:
-            # Only one agent speaks (calls API) at a time globally
+            # Resolve provider and model from agent definition
+            provider_name = self.definition.provider
+            model = self.definition.model
+
+            # Determine tools and max_turns based on role and protocol request
+            perms = self.definition.effective_permissions
+            is_worker = perms.write and perms.execute
+
+            if use_tools is False:
+                tools_spec = ""
+                max_turns = 2
+                model = model or "sonnet"
+            elif use_tools is True or is_worker:
+                tools_spec_t, max_turns = self.ROLE_TOOLS.get(self.agent_id, ("default", 10))
+                tools_spec = tools_spec_t
+                if is_worker:
+                    permission_mode = "bypassPermissions"
+                else:
+                    permission_mode = ""
+            else:
+                tools_spec_t, max_turns = self.ROLE_TOOLS.get(self.agent_id, ("", 1))
+                tools_spec = tools_spec_t
+                model = model or "sonnet"
+
+            permission_mode = "bypassPermissions" if is_worker and use_tools is not False else ""
+
+            # Get provider instance (per-invocation, no singleton state)
+            provider = get_provider(provider_name)
+
+            # Only one agent speaks at a time globally
             ctx = speaker.speak(self.agent_id, room_id)
             async with await ctx:
-                result = await asyncio.to_thread(self._call_claude, prompt, 600, use_tools)
+                response: LLMResponse = await provider.complete(
+                    prompt,
+                    model=model,
+                    max_turns=max_turns,
+                    tools=tools_spec,
+                    timeout=600,
+                    permission_mode=permission_mode,
+                )
             duration_ms = int((time.monotonic() - start) * 1000)
 
-            text = self._extract_text(result)
-            usage = result.get("usage", {})
-            tokens = usage.get("input_tokens", 0) + usage.get("output_tokens", 0)
-            cost = result.get("total_cost_usd", result.get("cost_usd", 0.0))
+            text = response.text
+            # Fallback: check raw for CLI-specific fields
+            if not text.strip() and response.raw:
+                text = self._extract_text(response.raw)
 
-            # Treat error_max_turns as success if we got text output
-            subtype = result.get("subtype", "")
             status = "success" if text.strip() else "failed"
 
             # Self-evolution: detect and fulfill tool requests
@@ -80,15 +115,15 @@ class LLMAgent:
             return AgentResult(
                 status=status,
                 artifact=text,
-                tokens_used=tokens,
-                cost_usd=cost,
+                tokens_used=response.tokens_input + response.tokens_output,
+                cost_usd=response.cost_usd,
                 agent_id=self.agent_id,
                 duration_ms=duration_ms,
             )
         except subprocess.TimeoutExpired:
             return AgentResult(
                 status="timeout",
-                error="Claude CLI timed out",
+                error="LLM call timed out",
                 agent_id=self.agent_id,
                 duration_ms=int((time.monotonic() - start) * 1000),
             )

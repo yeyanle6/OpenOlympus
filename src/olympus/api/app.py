@@ -183,6 +183,20 @@ async def list_custom_tools():
     return get_evolution_engine().list_tools()
 
 
+@app.get("/providers")
+async def list_providers():
+    from olympus.agent.providers import list_providers as lp
+    return {"providers": lp()}
+
+
+@app.get("/agents/{agent_id}/provider")
+async def get_agent_provider(agent_id: str):
+    a = _loader.get(agent_id)
+    if not a:
+        return {"error": "Agent not found"}
+    return {"agent_id": a.agent_id, "provider": a.provider, "model": a.model}
+
+
 # ── Agents ────────────────────────────────────────────────────
 
 @app.get("/agents")

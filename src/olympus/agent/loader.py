@@ -80,6 +80,8 @@ class AgentLoader:
             team=meta.get("team", ""),
             escalation_path=meta.get("escalation_path", []),
             collaboration_protocols=meta.get("collaboration_protocols", []),
+            provider=meta.get("provider", "claude_cli"),
+            model=meta.get("model", ""),
             persona=self._extract_section(body, "Persona"),
             principles=self._extract_section(body, "Core Principles"),
             framework=self._extract_section(body, "Decision Framework"),

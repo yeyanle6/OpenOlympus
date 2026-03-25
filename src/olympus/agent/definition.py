@@ -19,6 +19,8 @@ class AgentDefinition:
     team: str = ""
     escalation_path: list[str] = field(default_factory=list)
     collaboration_protocols: list[str] = field(default_factory=list)
+    provider: str = "claude_cli"  # LLM provider: claude_cli, anthropic_sdk, openai, ollama
+    model: str = ""  # Model override: sonnet, opus, gpt-4o, llama3, etc. Empty = provider default
     persona: str = ""
     principles: str = ""
     framework: str = ""
