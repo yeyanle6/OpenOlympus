@@ -19,6 +19,7 @@ from olympus.memory.consensus import ConsensusMemory
 from olympus.memory.references import ReferenceExtractor
 from olympus.memory.rooms_store import RoomsStore
 from olympus.director.room_aliases import resolve_alias, get_aliases_prompt
+from olympus.memory.wbs import TaskBreakdown, WBSNode, TaskStatus
 from olympus.protocol.base import Protocol
 from olympus.protocol.delegate import DelegateProtocol
 from olympus.protocol.roundtable import RoundtableProtocol
@@ -104,6 +105,7 @@ class Director:
         self._room_refs: dict[str, ReferenceExtractor] = {}  # room_id -> extractor
         self._room_themes: dict[str, str] = {}  # room_id -> theme
         self._store = RoomsStore()
+        self._wbs: dict[str, TaskBreakdown] = {}  # root_room_id -> task tree
 
     async def chat(self, user_message: str) -> dict[str, Any]:
         """Process a user message and return a response."""
@@ -133,6 +135,18 @@ class Director:
 
     def get_room_messages(self, room_id: str) -> list[dict[str, str]]:
         return self._room_messages.get(room_id, [])
+
+    def get_wbs(self, root_room_id: str) -> dict:
+        wbs = self._wbs.get(root_room_id)
+        if not wbs:
+            return {"sprint_goal": "", "nodes": [], "completion_pct": 0}
+        return {
+            "sprint_goal": wbs.sprint_goal,
+            "nodes": wbs.to_list(),
+            "completion_pct": round(wbs.completion_pct() * 100, 1),
+            "total_estimated": wbs.total_estimated_cycles(),
+            "total_actual": wbs.total_actual_cycles(),
+        }
 
     def get_room_references(self, room_id: str) -> dict:
         extractor = self._room_refs.get(room_id)
@@ -226,6 +240,21 @@ class Director:
                             self._followup_depth[fu_room_id] = depth + 1
                             self._parent_room[fu_room_id] = parent_room_id
                             self._room_themes[fu_room_id] = fu_theme
+
+                            # WBS: track as subtask under root room
+                            root_id = parent_room_id
+                            while root_id in self._parent_room:
+                                root_id = self._parent_room[root_id]
+                            if root_id not in self._wbs:
+                                self._wbs[root_id] = TaskBreakdown()
+                            wbs_node = WBSNode(
+                                id=fu_room_id[:8],
+                                title=fu_task[:80],
+                                parent_id=parent_room_id[:8] if depth > 0 else "",
+                                assignee=", ".join(fu_agents),
+                                status=TaskStatus.IN_PROGRESS,
+                            )
+                            self._wbs[root_id].add(wbs_node)
                             # Re-save meta with correct parent info and theme
                             await self._store.save_room_meta(fu_room_id, {
                                 "room_id": fu_room_id,
@@ -435,6 +464,16 @@ class Director:
         async def run_room() -> None:
             results = await room.run()
             managed.result = results
+            # Update WBS node status
+            for root_id, wbs in self._wbs.items():
+                node = wbs.get(room.room_id[:8])
+                if node:
+                    node.status = (
+                        TaskStatus.DONE if room.status == RoomStatus.COMPLETED
+                        else TaskStatus.BLOCKED
+                    )
+                    break
+
             # Persist final status
             await self._store.save_room_meta(room.room_id, {
                 "room_id": room.room_id,

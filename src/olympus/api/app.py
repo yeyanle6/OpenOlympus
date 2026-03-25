@@ -284,6 +284,11 @@ async def export_room(room_id: str):
     )
 
 
+@app.get("/rooms/{room_id}/wbs")
+async def get_room_wbs(room_id: str):
+    return _director.get_wbs(room_id)
+
+
 @app.get("/rooms/{room_id}/references")
 async def get_room_references(room_id: str):
     return _director.get_room_references(room_id)
