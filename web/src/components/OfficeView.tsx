@@ -188,6 +188,12 @@ export function OfficeView({ rooms, selectedRoom, onSelectRoom }: Props) {
             const runningCount = b.floors.reduce(
               (s, f) => s + f.rooms.filter((r) => r.status === "running").length, 0
             );
+            const errorCount = b.floors.reduce(
+              (s, f) => s + f.rooms.filter((r) => ["failed", "timeout", "budget_exceeded"].includes(r.status)).length, 0
+            );
+            const completedCount = b.floors.reduce(
+              (s, f) => s + f.rooms.filter((r) => r.status === "completed").length, 0
+            );
             const totalMsgs = b.floors.reduce(
               (s, f) => s + f.rooms.reduce((ss, r) => ss + (roomDetails.get(r.room_id)?.messageCount || 0), 0), 0
             );
@@ -207,12 +213,24 @@ export function OfficeView({ rooms, selectedRoom, onSelectRoom }: Props) {
                 <div className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <span className="text-2xl">🏢</span>
-                    {runningCount > 0 && (
-                      <span className="flex items-center gap-1 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
-                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                        {runningCount} active
-                      </span>
-                    )}
+                    <div className="flex gap-1">
+                      {runningCount > 0 && (
+                        <span className="flex items-center gap-1 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
+                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                          {runningCount}
+                        </span>
+                      )}
+                      {completedCount > 0 && (
+                        <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">
+                          ✓{completedCount}
+                        </span>
+                      )}
+                      {errorCount > 0 && (
+                        <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">
+                          ✗{errorCount}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <h3 className="text-sm font-semibold text-gray-800 mb-1 group-hover:text-blue-700 transition-colors">
@@ -324,6 +342,10 @@ export function OfficeView({ rooms, selectedRoom, onSelectRoom }: Props) {
                       } ${
                         isRunning ? "border-green-400 bg-green-50" :
                         room.status === "completed" ? "border-blue-300 bg-blue-50" :
+                        room.status === "failed" ? "border-red-400 bg-red-50" :
+                        room.status === "timeout" ? "border-orange-400 bg-orange-50" :
+                        room.status === "budget_exceeded" ? "border-amber-400 bg-amber-50" :
+                        room.status === "cancelled" ? "border-gray-400 bg-gray-100" :
                         "border-gray-200 bg-white"
                       }`}
                     >
@@ -339,9 +361,13 @@ export function OfficeView({ rooms, selectedRoom, onSelectRoom }: Props) {
                           <span className={`text-[10px] font-medium ${
                             isRunning ? "text-green-600" :
                             room.status === "completed" ? "text-blue-600" :
+                            room.status === "failed" ? "text-red-600" :
+                            room.status === "timeout" ? "text-orange-600" :
+                            room.status === "budget_exceeded" ? "text-amber-600" :
+                            room.status === "cancelled" ? "text-gray-500" :
                             "text-gray-400"
                           }`}>
-                            {room.status}
+                            {room.status === "budget_exceeded" ? "over budget" : room.status}
                           </span>
                         </div>
                       </div>

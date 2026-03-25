@@ -195,6 +195,21 @@ export function RoomDetail({ roomId, onClose }: Props) {
           </button>
         </div>
 
+        {/* Error state banner */}
+        {["failed", "timeout", "budget_exceeded", "cancelled"].includes(roomStatus) && (
+          <div className={`mt-2 px-2 py-1.5 rounded text-[11px] ${
+            roomStatus === "failed" ? "bg-red-100 text-red-700" :
+            roomStatus === "timeout" ? "bg-orange-100 text-orange-700" :
+            roomStatus === "budget_exceeded" ? "bg-amber-100 text-amber-700" :
+            "bg-gray-100 text-gray-600"
+          }`}>
+            {roomStatus === "failed" && "Room failed — an error occurred during execution"}
+            {roomStatus === "timeout" && "Room timed out — discussion took too long"}
+            {roomStatus === "budget_exceeded" && "Budget exceeded — token limit reached"}
+            {roomStatus === "cancelled" && "Room was cancelled"}
+          </div>
+        )}
+
         {/* Agent legend */}
         <div className="flex flex-wrap gap-1 mt-2">
           {agentOrder.map((agent) => {
